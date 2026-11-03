@@ -1,7 +1,8 @@
 import express from "express";
 import crypto from "node:crypto";
-import { q, one } from "./db.js";
+import { q, one, db } from "./db.js";
 import { checkCredentials, setSession, clearSession, readSession, requireAuth, rateLimit, hashPassword } from "./auth.js";
+import { TEST_LOGINS } from "./test-users.js";
 import { humanCheck, tooMany, recordAttempt, clearAttempts, clientIp, sendMail, turnstileSiteKey } from "./security.js";
 
 export const SERVICES = {
@@ -18,6 +19,8 @@ const ACT_TYPES = ["nota", "llamada", "email", "reunion", "whatsapp", "tarea", "
 const app = express();
 app.disable("x-powered-by");
 app.use(express.json({ limit: "300kb" }));
+// Asegura que la base (y la clave de sesión) estén listas antes de cualquier ruta de la API
+app.use("/api", (req, res, next) => { db().then(() => next(), next); });
 
 const wrap = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 const str = (v, max = 2000) => (v == null ? null : String(v).trim().slice(0, max) || null);
@@ -50,7 +53,10 @@ app.get("/api/health", wrap(async (_req, res) => {
 }));
 
 // Planillas del sitio → lead en el CRM
-app.get("/api/config", (_req, res) => res.json({ turnstileSiteKey: turnstileSiteKey() }));
+app.get("/api/config", (_req, res) => res.json({
+  turnstileSiteKey: turnstileSiteKey(),
+  testLogins: process.env.DISABLE_TEST_USERS ? [] : TEST_LOGINS
+}));
 
 app.post("/api/leads", rateLimit("lead", 8, 10 * 60 * 1000), humanCheck({ minMs: 4000, silent: true }), wrap(async (req, res) => {
   const b = req.body || {};

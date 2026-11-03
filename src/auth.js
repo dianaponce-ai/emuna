@@ -10,6 +10,7 @@ function secret() {
   // Sin SESSION_SECRET: se deriva de la URL de la base (que es privada) para no bloquear el panel.
   const db = process.env.DATABASE_URL || process.env.POSTGRES_URL;
   if (db) return crypto.createHash("sha256").update("emuna-session:" + db).digest("base64url");
+  if (globalThis.__emunaDbSecret) return globalThis.__emunaDbSecret;
   return isProd ? null : "dev-secret-cambiar";
 }
 export function adminPassword() {

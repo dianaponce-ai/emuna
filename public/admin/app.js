@@ -134,6 +134,16 @@ $("#forgotForm").addEventListener("submit", e => {
   const f = e.target;
   authSubmit(f, "/auth/forgot", { email: f.email.value, ...guards.forgotForm.fields() }, d => { $(".ok", f).textContent = d.message; });
 });
+fetch("/api/config").then(r => r.json()).then(c => {
+  const list = c.testLogins || [];
+  if (!list.length) return;
+  $("#demoList").innerHTML = list.map((u, i) => `<button type="button" data-demo="${i}"><b>${esc(u.email)}</b><em>${esc(u.label)}</em><span>${esc(u.password)}</span></button>`).join("");
+  $("#demoLogins").hidden = false;
+  $$("[data-demo]").forEach(b => b.addEventListener("click", () => {
+    const u = list[+b.dataset.demo], f = $("#loginForm");
+    f.email.value = u.email; f.password.value = u.password; f.querySelector("button[type=submit]").focus();
+  }));
+}).catch(() => {});
 let resetToken = new URLSearchParams(location.search).get("reset");
 $("#resetForm").addEventListener("submit", e => {
   e.preventDefault();

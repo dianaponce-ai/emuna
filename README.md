@@ -33,7 +33,8 @@ El panel acepta varios usuarios, cada uno con un rol:
 
 - **Administrador principal**: se define con las variables `ADMIN_EMAIL` y `ADMIN_PASSWORD`.
 - **Usuarios de prueba**: están en `src/test-users.js` (`admin.prueba@`, `comercial.prueba@` y `lectura.prueba@emuna.com`). Se crean solos en la base la primera vez que arranca el sitio. El repositorio guarda solo las contraseñas cifradas, así que las contraseñas no son públicas.
-- **Borrar los usuarios de prueba**: cuando termines el desarrollo, cargá `DISABLE_TEST_USERS=1` en Vercel y volvé a desplegar.
+- **Pantalla de ingreso**: mientras existan los usuarios de prueba, aparecen listados en el login con su contraseña; al tocar uno se completa el formulario.
+- **Borrar los usuarios de prueba**: cuando termines el desarrollo, cargá `DISABLE_TEST_USERS=1` en Vercel y volvé a desplegar. Los usuarios se borran y desaparecen de la pantalla de ingreso.
 
 ## Recuperar contraseña
 

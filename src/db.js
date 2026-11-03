@@ -74,13 +74,27 @@ CREATE TABLE IF NOT EXISTS auth_attempts (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_attempts_key ON auth_attempts(key, created_at);
+CREATE TABLE IF NOT EXISTS settings (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_act_client ON activities(client_id);
 CREATE INDEX IF NOT EXISTS idx_prop_client ON proposals(client_id);
 `;
 
 let ready;
 
+// Clave de sesión: si no hay SESSION_SECRET, se genera una al azar y se guarda en la base.
+async function ensureSecret(c) {
+  const crypto = await import("node:crypto");
+  await c.query("INSERT INTO settings (key,value) VALUES ('session_secret',$1) ON CONFLICT (key) DO NOTHING",
+    [crypto.randomBytes(32).toString("base64url")]);
+  const r = await c.query("SELECT value FROM settings WHERE key = 'session_secret'");
+  globalThis.__emunaDbSecret = r.rows[0].value;
+}
+
 async function seedUsers(c) {
+  await ensureSecret(c);
   if (process.env.DISABLE_TEST_USERS) {
     await c.query("DELETE FROM users WHERE is_test = true");
     return;

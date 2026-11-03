@@ -20,3 +20,23 @@ export const TEST_USERS = [
     "hash": "scrypt$kk-rs8_y6ovH9mz-CEIRYQ$0Y5cB7H62O5D7AmG0-LgPCHS4ftHmbPnfJgr5qiXSCg"
   }
 ];
+
+// Accesos que se muestran en la pantalla de ingreso mientras dure el desarrollo.
+// Se ocultan solos cuando se carga DISABLE_TEST_USERS=1.
+export const TEST_LOGINS = [
+  {
+    "email": "admin.prueba@emuna.com",
+    "password": "Emuna-SDcPrTCJ",
+    "label": "Administrador"
+  },
+  {
+    "email": "comercial.prueba@emuna.com",
+    "password": "Emuna-xITExsrI",
+    "label": "Comercial"
+  },
+  {
+    "email": "lectura.prueba@emuna.com",
+    "password": "Emuna-OuqtQiuS",
+    "label": "Solo lectura"
+  }
+];
