@@ -60,6 +60,20 @@ CREATE TABLE IF NOT EXISTS users (
   last_login TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS password_resets (
+  id         SERIAL PRIMARY KEY,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT UNIQUE NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at    TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS auth_attempts (
+  id         SERIAL PRIMARY KEY,
+  key        TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_attempts_key ON auth_attempts(key, created_at);
 CREATE INDEX IF NOT EXISTS idx_act_client ON activities(client_id);
 CREATE INDEX IF NOT EXISTS idx_prop_client ON proposals(client_id);
 `;
@@ -74,8 +88,7 @@ async function seedUsers(c) {
   for (const u of TEST_USERS) {
     await c.query(
       `INSERT INTO users (email,name,role,pass_hash,is_test) VALUES ($1,$2,$3,$4,true)
-       ON CONFLICT (email) DO UPDATE SET pass_hash = EXCLUDED.pass_hash, role = EXCLUDED.role, name = EXCLUDED.name
-       WHERE users.is_test = true`, [u.email, u.name, u.role, u.hash]);
+       ON CONFLICT (email) DO NOTHING`, [u.email, u.name, u.role, u.hash]);
   }
 }
 

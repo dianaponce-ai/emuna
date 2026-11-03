@@ -190,7 +190,6 @@
     </div>
 
     <form class="form reveal" id="leadForm" novalidate>
-      <div class="hp" aria-hidden="true"><label>No completar <input name="website_hp" tabindex="-1" autocomplete="off"></label></div>
       <div class="field">
         <label for="name">Nombre</label>
         <input id="name" name="name" autocomplete="name" required>
@@ -223,6 +222,7 @@
         <textarea id="message" name="message" rows="4" required></textarea>
         <span class="msg"></span>
       </div>
+      <div class="field full" data-captcha></div>
       <div class="form-ok" id="formOk" role="status">¡Gracias! Recibimos tu consulta. Te escribimos en menos de 48 horas hábiles.</div>
       <div class="form-actions">
         <small>Tus datos se usan solo para responder tu consulta.</small>
@@ -232,6 +232,7 @@
   </div>
 </section>
 
+<script src="/js/guard.js"></script>
 <script src="/js/site.js"></script>
 </body>
 </html>

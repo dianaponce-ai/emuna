@@ -69,6 +69,7 @@ async function api(method, path, body) {
     method, headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined, credentials: "same-origin"
   });
   if (r.status === 401 && !path.startsWith("/auth")) { showLogin(); throw new Error("Sesión vencida"); }
+  if (r.status === 403) { const d = await r.json().catch(() => ({})); toast(d.error || "Sin permiso", true); throw new Error(d.error || "Sin permiso"); }
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data.error || "Error");
   return data;
@@ -98,17 +99,57 @@ const totals = p => {
 const shareUrl = p => `${location.origin}/p/${p.token}`;
 
 /* ---------------------------- auth ---------------------------- */
-function showLogin() { $("#app").hidden = true; $("#login").hidden = false; closeDrawer(); }
-$("#loginForm").addEventListener("submit", async e => {
+function showLogin(pane = "loginForm") {
+  $("#app").hidden = true; $("#login").hidden = false; closeDrawer(true);
+  $$(".auth-pane").forEach(f => f.hidden = f.id !== pane);
+  $(`#${pane} input:not([name=_hp])`)?.focus();
+}
+const guards = {};
+["loginForm", "forgotForm"].forEach(id => guards[id] = Guard.attach($("#" + id), { theme: "light" }));
+$$("[data-pane]").forEach(b => b.addEventListener("click", () => {
+  const to = b.dataset.pane;
+  const email = $(".auth-pane:not([hidden]) [name=email]")?.value;
+  if (email && $(`#${to} [name=email]`)) $(`#${to} [name=email]`).value = email;
+  $$(".auth-pane .err, .auth-pane .ok").forEach(e => e.textContent = "");
+  showLogin(to);
+}));
+$$(".eye").forEach(b => b.addEventListener("click", () => {
+  const i = b.previousElementSibling; const show = i.type === "password";
+  i.type = show ? "text" : "password"; b.textContent = show ? "Ocultar" : "Ver";
+}));
+async function authSubmit(form, path, body, onOk) {
+  const err = $(".err", form), btn = $("button[type=submit]", form);
+  err.textContent = ""; btn.disabled = true;
+  try { const d = await api("POST", path, body); await onOk(d); }
+  catch (e) { err.textContent = e.message; }
+  finally { btn.disabled = false; guards[form.id]?.reset(); }
+}
+$("#loginForm").addEventListener("submit", e => {
   e.preventDefault();
-  const d = Object.fromEntries(new FormData(e.target));
-  $("#loginErr").textContent = "";
-  try { await api("POST", "/auth/login", d); start(); }
-  catch (err) { $("#loginErr").textContent = err.message; }
+  const f = e.target;
+  authSubmit(f, "/auth/login", { email: f.email.value, password: f.password.value, ...guards.loginForm.fields() }, () => { f.password.value = ""; start(); });
+});
+$("#forgotForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const f = e.target;
+  authSubmit(f, "/auth/forgot", { email: f.email.value, ...guards.forgotForm.fields() }, d => { $(".ok", f).textContent = d.message; });
+});
+let resetToken = new URLSearchParams(location.search).get("reset");
+$("#resetForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const f = e.target;
+  if (f.password.value !== f.password2.value) { $(".err", f).textContent = "Las contraseñas no coinciden."; return; }
+  authSubmit(f, "/auth/reset", { token: resetToken, password: f.password.value }, () => {
+    history.replaceState(null, "", "/admin/"); resetToken = null;
+    showLogin("loginForm");
+    $("#loginForm .err").textContent = "";
+    toast("Contraseña actualizada. Ya podés ingresar.");
+  });
 });
 $("#logout").addEventListener("click", async () => { await api("POST", "/auth/logout"); showLogin(); });
 
 async function start() {
+  if (resetToken) return showLogin("resetForm");
   let me;
   try { me = await api("GET", "/auth/me"); } catch { return showLogin(); }
   const ROLE = { admin: "Administrador", editor: "Comercial", lectura: "Solo lectura" };

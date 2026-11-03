@@ -458,3 +458,17 @@ footer nav a:hover{color:var(--beige)}
   .review div{grid-template-columns:1fr;gap:.2rem}
   .doc-table th:nth-child(2),.doc-table td:nth-child(2){display:none}
 }
+
+/* ---------- acceso al panel ---------- */
+.nav-actions{display:flex;align-items:center;gap:.8rem}
+.user-link{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;border:1px solid rgba(110,125,78,.35);color:var(--ink);transition:background .4s,border-color .4s,color .4s,transform .5s var(--ease)}
+.user-link svg{width:21px;height:21px}
+.user-link:hover{background:var(--olive);border-color:var(--olive);color:var(--paper);transform:translateY(-2px)}
+.mobile-menu .small-login{font-family:var(--sans)!important;font-size:1rem!important;margin-top:1.2rem;color:var(--beige)}
+@media (max-width:980px){
+  .nav-actions .btn{display:none}
+  .nav{gap:1rem}
+  .nav-actions{margin-left:auto}
+  .user-link{width:40px;height:40px;position:relative;z-index:110}
+  .menu-open .user-link{color:var(--paper);border-color:rgba(247,243,234,.45)}
+}

@@ -10,17 +10,47 @@
 </head>
 <body>
 
-<!-- Login -->
+<!-- Login / recuperar / nueva contraseña -->
 <div class="login" id="login" hidden>
-  <form class="login-card" id="loginForm">
+  <div class="login-card">
     <a href="/" class="logo">EMUNÁ<span>.</span></a>
-    <h1>Panel de gestión</h1>
-    <p>Clientes, pipeline y propuestas.</p>
-    <label>Email<input name="email" type="email" autocomplete="username" required></label>
-    <label>Contraseña<input name="password" type="password" autocomplete="current-password" required></label>
-    <p class="err" id="loginErr"></p>
-    <button class="btn primary" type="submit">Entrar →</button>
-  </form>
+
+    <form id="loginForm" class="auth-pane">
+      <h1>Panel de gestión</h1>
+      <p>Clientes, pipeline y propuestas.</p>
+      <label>Email<input name="email" type="email" autocomplete="username" required></label>
+      <label>Contraseña
+        <span class="pw"><input name="password" type="password" autocomplete="current-password" required><button type="button" class="eye" aria-label="Mostrar contraseña">Ver</button></span>
+      </label>
+      <div data-captcha></div>
+      <p class="err" role="alert"></p>
+      <button class="btn primary" type="submit">Entrar →</button>
+      <button type="button" class="link center" data-pane="forgotForm">¿Olvidaste tu contraseña?</button>
+    </form>
+
+    <form id="forgotForm" class="auth-pane" hidden>
+      <h1>Recuperar contraseña</h1>
+      <p>Escribí tu email y te enviamos un enlace para crear una contraseña nueva.</p>
+      <label>Email<input name="email" type="email" autocomplete="email" required></label>
+      <div data-captcha></div>
+      <p class="err" role="alert"></p>
+      <p class="ok" role="status"></p>
+      <button class="btn primary" type="submit">Enviar enlace →</button>
+      <button type="button" class="link center" data-pane="loginForm">← Volver al ingreso</button>
+    </form>
+
+    <form id="resetForm" class="auth-pane" hidden>
+      <h1>Contraseña nueva</h1>
+      <p>Mínimo 10 caracteres, con letras y números.</p>
+      <label>Contraseña nueva
+        <span class="pw"><input name="password" type="password" autocomplete="new-password" minlength="10" required><button type="button" class="eye" aria-label="Mostrar contraseña">Ver</button></span>
+      </label>
+      <label>Repetir contraseña<input name="password2" type="password" autocomplete="new-password" required></label>
+      <p class="err" role="alert"></p>
+      <button class="btn primary" type="submit">Guardar contraseña →</button>
+      <button type="button" class="link center" data-pane="loginForm">← Volver al ingreso</button>
+    </form>
+  </div>
 </div>
 
 <!-- App -->
@@ -46,6 +76,7 @@
 <aside class="drawer" id="drawer" aria-hidden="true"></aside>
 <div class="toast" id="toast" role="status"></div>
 
+<script src="/js/guard.js"></script>
 <script src="/admin/app.js"></script>
 </body>
 </html>

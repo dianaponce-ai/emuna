@@ -30,7 +30,12 @@ const SERVICES_NAV = [
       <li><a href="/#proyectos">Proyectos</a></li>
       <li><a href="/#sobre">Sobre</a></li>
     </ul>
-    <a href="${document.getElementById("brief") ? "#brief-sec" : "/#contacto"}" class="btn btn-primary magnetic">Hablemos <span class="arrow">→</span></a>
+    <div class="nav-actions">
+      <a href="/admin" class="user-link" aria-label="Ingresar al panel" title="Ingresar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8.5" r="3.6"/><path d="M4.8 20c.9-3.6 3.8-5.6 7.2-5.6s6.3 2 7.2 5.6"/></svg>
+      </a>
+      <a href="${document.getElementById("brief") ? "#brief-sec" : "/#contacto"}" class="btn btn-primary magnetic">Hablemos <span class="arrow">→</span></a>
+    </div>
     <button class="burger" id="burger" aria-label="Abrir menú" aria-expanded="false"><span></span><span></span></button>
   </div>
 </header>
@@ -41,6 +46,7 @@ const SERVICES_NAV = [
   <a href="/#proyectos">Proyectos</a>
   <a href="/#sobre">Sobre</a>
   <a href="/#contacto">Contacto</a>
+  <a href="/admin" class="small-login">Ingresar →</a>
   <p class="small">Estrategia digital. Diseño. Crecimiento.</p>
 </nav>`;
   const footer = `
@@ -223,6 +229,7 @@ addEventListener("keydown", e => { if (e.key === "Escape") toggleMenu(false); })
 /* ---------- formulario de contacto de la home → CRM ---------- */
 const leadForm = document.getElementById("leadForm");
 if (leadForm) {
+  const guard = Guard.attach(leadForm, { theme: "dark" });
   const rules = {
     name:    v => v.trim().length >= 2 || "Escribí tu nombre.",
     email:   v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()) || "Revisá el email.",
@@ -243,7 +250,7 @@ if (leadForm) {
   });
   leadForm.addEventListener("submit", async e => {
     e.preventDefault();
-    const fields = [...leadForm.querySelectorAll("input:not(.hp input),select,textarea")];
+    const fields = [...leadForm.querySelectorAll("input:not([name=_hp]),select,textarea")];
     if (!fields.map(validateField).every(Boolean)) { leadForm.querySelector(".err input, .err select, .err textarea")?.focus(); return; }
     const d = Object.fromEntries(new FormData(leadForm));
     const btn = leadForm.querySelector("button[type=submit]");
@@ -252,13 +259,13 @@ if (leadForm) {
       const r = await fetch("/api/leads", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: d.name, email: d.email, company: d.company, service: d.service, message: d.message, _hp: d.website_hp, source: "web",
+          name: d.name, email: d.email, company: d.company, service: d.service, message: d.message, source: "web", ...guard.fields(),
           brief: [{ section: "Contacto", label: "Desafío", value: d.message }]
         })
       });
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "No pudimos enviar.");
       document.getElementById("formOk").classList.add("show");
-      leadForm.reset();
+      leadForm.reset(); guard.reset();
     } catch (err) {
       // Sin backend disponible: se ofrece WhatsApp con el mensaje listo
       const text = `Hola EMUNÁ, soy ${d.name}${d.company ? ` (${d.company})` : ""}.\n${d.message}\nEmail: ${d.email}`;

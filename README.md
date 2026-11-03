@@ -35,6 +35,30 @@ El panel acepta varios usuarios, cada uno con un rol:
 - **Usuarios de prueba**: están en `src/test-users.js` (`admin.prueba@`, `comercial.prueba@` y `lectura.prueba@emuna.com`). Se crean solos en la base la primera vez que arranca el sitio. El repositorio guarda solo las contraseñas cifradas, así que las contraseñas no son públicas.
 - **Borrar los usuarios de prueba**: cuando termines el desarrollo, cargá `DISABLE_TEST_USERS=1` en Vercel y volvé a desplegar.
 
+## Recuperar contraseña
+
+En el ingreso al panel está la opción **"¿Olvidaste tu contraseña?"**. El sistema envía al usuario un enlace que vence en 1 hora y se puede usar una sola vez. Siempre muestra el mismo mensaje, exista o no el email, para no revelar qué cuentas hay registradas.
+
+- Los emails se envían con [Resend](https://resend.com). Cargá `RESEND_API_KEY` y `MAIL_FROM` (por ejemplo `EMUNÁ <hola@tudominio.com>`, con el dominio verificado en Resend).
+- Si falta `RESEND_API_KEY`, el enlace aparece en los logs del servidor (en Vercel: *Logs*), así que igual podés usarlo durante el desarrollo.
+- `SITE_URL` (opcional) define el dominio de los enlaces, por ejemplo `https://emuna.com`.
+- El administrador principal de las variables `ADMIN_EMAIL`/`ADMIN_PASSWORD` no recupera por email: su contraseña se cambia en Vercel.
+
+## Protección anti-bots
+
+Cubre el login, "olvidé mi contraseña", el formulario de contacto y las cuatro planillas:
+
+1. **Campo trampa invisible**: los bots lo completan y el envío se descarta sin avisarles.
+2. **Tiempo mínimo de llenado**: rechaza envíos hechos al instante de abrir la página.
+3. **Límite de intentos guardado en la base de datos**, para que funcione también en Vercel:
+   - Login: 6 intentos fallidos por usuario o 20 por IP cada 15 minutos.
+   - Recuperar contraseña: 3 pedidos por email por hora.
+   - Formularios: 15 envíos por IP por hora.
+4. **Cloudflare Turnstile** (el "no soy un robot" de Cloudflare, sin acertijos), opcional:
+   1. Creá un widget gratis en Cloudflare → Turnstile para tu dominio.
+   2. Cargá `TURNSTILE_SITE_KEY` y `TURNSTILE_SECRET_KEY` en Vercel.
+   3. Volvé a desplegar. El verificador aparece solo en todos los formularios.
+
 ## Correr en tu computadora
 
 Necesitás Node 18 o superior.

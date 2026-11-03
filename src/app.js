@@ -1,7 +1,8 @@
 import express from "express";
 import crypto from "node:crypto";
 import { q, one } from "./db.js";
-import { checkCredentials, setSession, clearSession, readSession, requireAuth, rateLimit } from "./auth.js";
+import { checkCredentials, setSession, clearSession, readSession, requireAuth, rateLimit, hashPassword } from "./auth.js";
+import { humanCheck, tooMany, recordAttempt, clearAttempts, clientIp, sendMail, turnstileSiteKey } from "./security.js";
 
 export const SERVICES = {
   "paid-media": "Marketing & Paid Media",
@@ -49,9 +50,12 @@ app.get("/api/health", wrap(async (_req, res) => {
 }));
 
 // Planillas del sitio → lead en el CRM
-app.post("/api/leads", rateLimit("lead", 8, 10 * 60 * 1000), wrap(async (req, res) => {
+app.get("/api/config", (_req, res) => res.json({ turnstileSiteKey: turnstileSiteKey() }));
+
+app.post("/api/leads", rateLimit("lead", 8, 10 * 60 * 1000), humanCheck({ minMs: 4000, silent: true }), wrap(async (req, res) => {
   const b = req.body || {};
-  if (b._hp) return res.json({ ok: true }); // honeypot antispam
+  if (await tooMany("lead:" + clientIp(req), 15, 60)) return res.status(429).json({ error: "Recibimos demasiados envíos. Probá más tarde o escribinos por WhatsApp." });
+  await recordAttempt("lead:" + clientIp(req));
   const name = str(b.name, 120), email = str(b.email, 160);
   if (!name || name.length < 2) return res.status(400).json({ error: "Falta el nombre." });
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return res.status(400).json({ error: "Email inválido." });
@@ -102,14 +106,68 @@ app.post("/api/public/proposals/:token/accept", rateLimit("accept", 10, 60 * 60 
 
 /* ------------------------- auth ------------------------- */
 
-app.post("/api/auth/login", rateLimit("login", 10, 15 * 60 * 1000), wrap(async (req, res) => {
+app.post("/api/auth/login", rateLimit("login", 20, 15 * 60 * 1000), humanCheck({ minMs: 1200 }), wrap(async (req, res) => {
   const { email, password } = req.body || {};
-  const user = await checkCredentials(email, password, e => one("SELECT * FROM users WHERE email = $1", [e]));
-  if (!user) return res.status(401).json({ error: "Email o contraseña incorrectos." });
+  const e = String(email || "").toLowerCase().trim();
+  const ipKey = "login-ip:" + clientIp(req), userKey = "login-user:" + e;
+  if (await tooMany(ipKey, 20, 15) || await tooMany(userKey, 6, 15))
+    return res.status(429).json({ error: "Demasiados intentos fallidos. Esperá 15 minutos o recuperá tu contraseña." });
+  const user = await checkCredentials(e, password, x => one("SELECT * FROM users WHERE email = $1", [x]));
+  if (!user) {
+    await recordAttempt(ipKey); await recordAttempt(userKey);
+    return res.status(401).json({ error: "Email o contraseña incorrectos." });
+  }
+  await clearAttempts(userKey);
   await q("UPDATE users SET last_login = now() WHERE email = $1", [user.email]);
   setSession(res, user);
   res.json({ ok: true, user });
 }));
+
+// Olvidé mi contraseña: siempre responde lo mismo para no revelar qué emails existen.
+const FORGOT_MSG = "Si el email está registrado, te enviamos un enlace para crear una contraseña nueva. Revisá tu bandeja (y spam).";
+app.post("/api/auth/forgot", rateLimit("forgot", 5, 15 * 60 * 1000), humanCheck({ minMs: 1500 }), wrap(async (req, res) => {
+  const e = String(req.body?.email || "").toLowerCase().trim();
+  const ipKey = "forgot-ip:" + clientIp(req), userKey = "forgot-user:" + e;
+  if (await tooMany(ipKey, 10, 60) || await tooMany(userKey, 3, 60)) return res.json({ ok: true, message: FORGOT_MSG });
+  await recordAttempt(ipKey); await recordAttempt(userKey);
+  const u = await one("SELECT * FROM users WHERE email = $1", [e]);
+  if (u) {
+    const token = crypto.randomBytes(32).toString("base64url");
+    const hash = crypto.createHash("sha256").update(token).digest("hex");
+    await q("UPDATE password_resets SET used_at = now() WHERE user_id = $1 AND used_at IS NULL", [u.id]);
+    await q("INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES ($1,$2, now() + interval '1 hour')", [u.id, hash]);
+    const base = process.env.SITE_URL || `${req.headers["x-forwarded-proto"] || req.protocol}://${req.headers.host}`;
+    const link = `${base.replace(/\/$/, "")}/admin/?reset=${token}`;
+    await sendMail({
+      to: u.email,
+      subject: "Recuperar contraseña · EMUNÁ",
+      text: `Hola ${u.name},\n\nPara crear una contraseña nueva entrá a este enlace (vence en 1 hora):\n${link}\n\nSi no lo pediste, ignorá este email.`,
+      html: `<div style="font-family:Georgia,serif;color:#2C3320;max-width:480px;margin:auto;padding:32px;background:#F7F3EA;border-radius:18px">
+        <p style="font-size:22px;letter-spacing:.14em;margin:0 0 24px">EMUNÁ<span style="color:#AA7229">.</span></p>
+        <p style="font-family:Arial,sans-serif;font-size:15px">Hola ${u.name.replace(/[<>&]/g, "")},</p>
+        <p style="font-family:Arial,sans-serif;font-size:15px">Recibimos un pedido para cambiar tu contraseña del panel. El enlace vence en 1 hora.</p>
+        <p><a href="${link}" style="display:inline-block;background:#6E7D4E;color:#F7F3EA;padding:14px 22px;border-radius:999px;text-decoration:none;font-family:Arial,sans-serif;font-weight:bold">Crear contraseña nueva</a></p>
+        <p style="font-family:Arial,sans-serif;font-size:13px;color:#5B6447">Si no lo pediste, ignorá este email: tu contraseña no cambia.</p></div>`
+    });
+  }
+  res.json({ ok: true, message: FORGOT_MSG });
+}));
+
+app.post("/api/auth/reset", rateLimit("reset", 10, 15 * 60 * 1000), wrap(async (req, res) => {
+  const { token, password } = req.body || {};
+  if (!password || String(password).length < 10) return res.status(400).json({ error: "La contraseña tiene que tener al menos 10 caracteres." });
+  if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) return res.status(400).json({ error: "Usá letras y números." });
+  const hash = crypto.createHash("sha256").update(String(token || "")).digest("hex");
+  const r = await one(
+    `SELECT pr.id, pr.user_id, u.email FROM password_resets pr JOIN users u ON u.id = pr.user_id
+     WHERE pr.token_hash = $1 AND pr.used_at IS NULL AND pr.expires_at > now()`, [hash]);
+  if (!r) return res.status(400).json({ error: "El enlace venció o ya se usó. Pedí uno nuevo." });
+  await q("UPDATE users SET pass_hash = $2 WHERE id = $1", [r.user_id, hashPassword(password)]);
+  await q("UPDATE password_resets SET used_at = now() WHERE id = $1", [r.id]);
+  await clearAttempts("login-user:" + r.email);
+  res.json({ ok: true });
+}));
+
 app.post("/api/auth/logout", (_req, res) => { clearSession(res); res.json({ ok: true }); });
 app.get("/api/auth/me", (req, res) => {
   const s = readSession(req);

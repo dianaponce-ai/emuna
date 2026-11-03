@@ -201,7 +201,7 @@ const BRIEFS = {
     if (f.type === "range") {
       return `<div class="qgroup${half}" data-field="${f.name}"><span class="lbl">${esc(f.label)}</span>
         <div class="scale"><input type="range" id="${id(f.name)}" name="${f.name}" min="${f.min}" max="${f.max}" value="${f.value}" aria-label="${esc(f.label)}">
-        <output for="${id(f.name)}">${f.value}${f.suffix || ""}</output></div></div>`;
+        <output for="${id(f.name)}">${f.value}${f.suffix || ""}</output></div><span class="msg"></span></div>`;
     }
     let input;
     const ph = f.placeholder ? ` placeholder="${esc(f.placeholder)}"` : "";
@@ -214,12 +214,11 @@ const BRIEFS = {
 
   root.innerHTML = `
     <form class="bform" id="bform" novalidate>
-      <div class="hp" aria-hidden="true"><label>No completar <input name="_hp" tabindex="-1" autocomplete="off"></label></div>
       <div class="bbar"><i id="bbar"></i></div>
       ${steps.map((s, i) => `
         <div class="bstep${i === 0 ? " on" : ""}" data-step="${i}">
           <h3>${esc(s.title)}</h3>
-          ${s.review ? `<p class="hint">Revisá tus respuestas. Si algo no está bien, volvé atrás y corregilo.</p><dl class="review" id="review"></dl><p class="ferr" id="ferr" hidden></p>`
+          ${s.review ? `<p class="hint">Revisá tus respuestas. Si algo no está bien, volvé atrás y corregilo.</p><dl class="review" id="review"></dl><div class="full" data-captcha style="grid-column:1/-1"></div><p class="ferr" id="ferr" hidden></p>`
                      : `<p class="hint">${esc(s.hint || "")}</p>${s.fields.map(fieldHTML).join("")}`}
         </div>`).join("")}
       <div class="bnav">
@@ -237,6 +236,7 @@ const BRIEFS = {
   aside.innerHTML = steps.map((s, i) => `<li class="${i === 0 ? "on" : ""}">${esc(s.title)}</li>`).join("");
 
   const form = document.getElementById("bform");
+  const guard = Guard.attach(form, { theme: "dark" });
   let cur = 0;
 
   form.querySelectorAll('input[type=range]').forEach(r => {
@@ -266,7 +266,8 @@ const BRIEFS = {
     else if (f.name === "name" && v && v.length < 2) err = "Escribí tu nombre.";
     const box = form.querySelector(`[data-field="${f.name}"]`);
     box.classList.toggle("err", !!err);
-    box.querySelector(".msg").textContent = err;
+    const msg = box.querySelector(".msg");
+    if (msg) msg.textContent = err;
     return !err;
   }
   form.addEventListener("input", e => {
@@ -326,7 +327,7 @@ const BRIEFS = {
       const r = await fetch("/api/leads", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          service, source: "web", _hp: form.elements._hp.value,
+          service, source: "web", ...guard.fields(),
           name: get("name"), email: get("email"), phone: get("phone"), company: get("company"), website: get("website"), message: get("message"),
           brief: answers.filter(a => !contact.includes(a.name) && a.value).map(({ section, label, value }) => ({ section, label, value }))
         })
@@ -342,6 +343,7 @@ const BRIEFS = {
       const summary = answers.filter(a => a.value).map(a => `${a.label}: ${a.value}`).join("\n");
       ferr.innerHTML = `${esc(err.message)} Podés <a href="${waLink(`Hola EMUNÁ, completé la ${cfg.title.toLowerCase()}:\n${summary}`)}" target="_blank" rel="noopener" style="text-decoration:underline">enviarla por WhatsApp</a>.`;
       ferr.hidden = false;
+      guard.reset();
     } finally { btn.disabled = false; }
   });
 
