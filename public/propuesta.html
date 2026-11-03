@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Propuesta | EMUNÁ</title>
+<meta name="theme-color" content="#6E7D4E">
+<link rel="stylesheet" href="/css/site.css">
+</head>
+<body>
+<main class="doc">
+  <div class="wrap" id="doc"><p style="color:var(--muted);padding:6rem 0">Cargando propuesta…</p></div>
+</main>
+<script src="/js/site.js"></script>
+<script>
+(async function () {
+  const root = document.getElementById("doc");
+  const token = location.pathname.split("/").filter(Boolean).pop();
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const SERVICES = { "paid-media": "Marketing & Paid Media", "diseno-web": "Diseño & Desarrollo Web", "branding": "Branding & Content Strategy", "consultoria": "Consultoría & Optimización", "otro": "Propuesta comercial" };
+  let p;
+  try {
+    const r = await fetch(`/api/public/proposals/${encodeURIComponent(token)}`);
+    if (!r.ok) throw 0;
+    p = await r.json();
+  } catch {
+    root.innerHTML = `<div style="padding:6rem 0"><span class="eyebrow">Propuesta</span><h2>No encontramos<br><em style="color:var(--gold)">esta propuesta.</em></h2><p style="color:var(--muted);margin:1.4rem 0 2rem">Puede que el enlace esté incompleto o que la propuesta ya no esté disponible.</p><a class="btn btn-primary" data-wa="Hola EMUNÁ, no puedo abrir el link de mi propuesta.">Escribinos por WhatsApp <span class="arrow">→</span></a></div>`;
+    document.querySelectorAll("[data-wa]").forEach(a => { a.href = waLink(a.dataset.wa); a.target = "_blank"; });
+    return;
+  }
+  document.title = `${p.title} | EMUNÁ`;
+  const money = n => new Intl.NumberFormat("es-AR", { style: "currency", currency: p.currency, maximumFractionDigits: 0 }).format(n || 0);
+  const date = d => d ? new Date(d.length === 10 ? d + "T12:00" : d).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" }) : "";
+  let once = 0, monthly = 0;
+  p.items.forEach(it => { const v = it.qty * it.price; it.recurring ? monthly += v : once += v; });
+  const f = 1 - (p.discount || 0) / 100, sub = once + monthly;
+  const expired = p.valid_until && p.valid_until < new Date().toISOString().slice(0, 10);
+  const who = p.client_company || p.client_name || "";
+
+  root.innerHTML = `
+    <div class="doc-actions"><button class="btn btn-ghost" onclick="print()">Descargar PDF</button></div>
+    <article class="doc-card">
+      <header class="doc-top">
+        <div class="orb" style="width:340px;height:340px;background:var(--beige);opacity:.18;right:-80px;top:-120px"></div>
+        <div class="orb" style="width:180px;height:180px;background:var(--gold);opacity:.35;right:120px;bottom:-90px;mix-blend-mode:multiply"></div>
+        <span class="eyebrow">${esc(SERVICES[p.service] || "Propuesta")}</span>
+        <h1>${esc(p.title)}</h1>
+        <div class="doc-meta">
+          ${who ? `<span>Preparada para<b>${esc(who)}</b></span>` : ""}
+          <span>Fecha<b>${date(p.sent_at || p.created_at)}</b></span>
+          ${p.valid_until ? `<span>Válida hasta<b>${date(p.valid_until)}</b></span>` : ""}
+        </div>
+      </header>
+      <div class="doc-body">
+        ${p.intro ? `<p class="doc-intro">${esc(p.intro)}</p>` : ""}
+        <table class="doc-table">
+          <thead><tr><th>Concepto</th><th class="r">Cant.</th><th class="r">Importe</th></tr></thead>
+          <tbody>${p.items.map(it => `<tr>
+            <td><b>${esc(it.title)}</b>${it.detail ? `<p>${esc(it.detail)}</p>` : ""}</td>
+            <td class="r">${it.qty}</td>
+            <td class="r">${money(it.qty * it.price)}${it.recurring ? "<br><small style='color:var(--muted)'>por mes</small>" : ""}</td></tr>`).join("")}</tbody>
+        </table>
+        <div class="doc-tot">
+          ${p.discount ? `<div><span>Subtotal</span><span>${money(sub)}</span></div><div><span>Descuento ${p.discount}%</span><span>− ${money(sub * (1 - f))}</span></div>` : ""}
+          ${monthly && once ? `<div><span>Pago único</span><span>${money(once * f)}</span></div><div><span>Abono mensual</span><span>${money(monthly * f)}/mes</span></div>` : ""}
+          <div class="grand"><span>${monthly && !once ? "Total mensual" : "Total"}</span><span>${money(sub * f)}</span></div>
+        </div>
+        <div class="doc-terms">
+          <div>${p.terms ? `<h3>Condiciones</h3><p>${esc(p.terms)}</p>` : ""}</div>
+          <div class="doc-accept" id="accept"></div>
+        </div>
+      </div>
+    </article>`;
+
+  const box = document.getElementById("accept");
+  function acceptUI() {
+    if (p.status === "aceptada") {
+      box.innerHTML = `<h3>Propuesta aceptada ✓</h3><p class="ok">Aceptada${p.accepted_by ? ` por ${esc(p.accepted_by)}` : ""}${p.accepted_at ? ` el ${date(p.accepted_at)}` : ""}.</p><p style="color:var(--muted);font-size:.92rem">Te vamos a escribir para coordinar el inicio.</p>`;
+      return;
+    }
+    if (p.status === "rechazada" || expired) {
+      box.innerHTML = `<h3>Propuesta no vigente</h3><p style="color:var(--muted);font-size:.92rem">${expired ? "Venció el plazo de validez." : "Esta propuesta fue cerrada."} Escribinos y la actualizamos.</p><a class="btn btn-primary" href="${waLink(`Hola EMUNÁ, quiero retomar la propuesta “${p.title}”.`)}" target="_blank" rel="noopener">Escribir por WhatsApp <span class="arrow">→</span></a>`;
+      return;
+    }
+    box.innerHTML = `<h3>¿Avanzamos?</h3>
+      <p style="color:var(--muted);font-size:.92rem">Escribí tu nombre para aceptar la propuesta. Te contactamos para coordinar el inicio.</p>
+      <input id="accName" placeholder="Nombre y apellido" autocomplete="name">
+      <p class="bad" id="accErr"></p>
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+        <button class="btn btn-primary" id="accBtn">Aceptar propuesta <span class="arrow">→</span></button>
+        <a class="btn btn-ghost" href="${waLink(`Hola EMUNÁ, tengo una consulta sobre la propuesta “${p.title}”.`)}" target="_blank" rel="noopener">Tengo dudas</a>
+      </div>`;
+    document.getElementById("accBtn").addEventListener("click", async () => {
+      const name = document.getElementById("accName").value.trim();
+      const err = document.getElementById("accErr");
+      if (name.length < 3) { err.textContent = "Escribí tu nombre completo."; return; }
+      const r = await fetch(`/api/public/proposals/${encodeURIComponent(token)}/accept`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { err.textContent = d.error || "No pudimos registrar la aceptación."; return; }
+      p.status = "aceptada"; p.accepted_by = name; p.accepted_at = new Date().toISOString(); acceptUI();
+    });
+  }
+  acceptUI();
+})();
+</script>
+</body>
+</html>

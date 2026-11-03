@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Panel · EMUNÁ</title>
+<meta name="theme-color" content="#2C3320">
+<link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+
+<!-- Login -->
+<div class="login" id="login" hidden>
+  <form class="login-card" id="loginForm">
+    <a href="/" class="logo">EMUNÁ<span>.</span></a>
+    <h1>Panel de gestión</h1>
+    <p>Clientes, pipeline y propuestas.</p>
+    <label>Email<input name="email" type="email" autocomplete="username" required></label>
+    <label>Contraseña<input name="password" type="password" autocomplete="current-password" required></label>
+    <p class="err" id="loginErr"></p>
+    <button class="btn primary" type="submit">Entrar →</button>
+  </form>
+</div>
+
+<!-- App -->
+<div class="app" id="app" hidden>
+  <aside class="side">
+    <a href="#/" class="logo">EMUNÁ<span>.</span></a>
+    <nav>
+      <a href="#/" data-nav="dashboard"><i>◐</i>Resumen</a>
+      <a href="#/pipeline" data-nav="pipeline"><i>▥</i>Pipeline</a>
+      <a href="#/clientes" data-nav="clientes"><i>◎</i>Clientes</a>
+      <a href="#/propuestas" data-nav="propuestas"><i>❑</i>Propuestas</a>
+    </nav>
+    <div class="side-foot">
+      <a href="/" target="_blank">Ver sitio ↗</a>
+      <button id="logout" class="link">Cerrar sesión</button>
+    </div>
+  </aside>
+  <main class="main" id="view"></main>
+</div>
+
+<div class="drawer-bg" id="drawerBg"></div>
+<aside class="drawer" id="drawer" aria-hidden="true"></aside>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="/admin/app.js"></script>
+</body>
+</html>

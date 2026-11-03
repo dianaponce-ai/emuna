@@ -1,0 +1,20 @@
+{
+  "name": "emuna",
+  "version": "1.0.0",
+  "description": "Sitio EMUNÁ + CRM, clientes y propuestas",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.15",
+    "express": "^4.22.3",
+    "pg": "^8.23.1"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  }
+}
