@@ -1,7 +1,7 @@
 import express from "express";
 import crypto from "node:crypto";
 import { q, one } from "./db.js";
-import { checkCredentials, setSession, clearSession, readSession, requireAuth, rateLimit, adminEmail } from "./auth.js";
+import { checkCredentials, setSession, clearSession, readSession, requireAuth, rateLimit } from "./auth.js";
 
 export const SERVICES = {
   "paid-media": "Marketing & Paid Media",
@@ -102,16 +102,18 @@ app.post("/api/public/proposals/:token/accept", rateLimit("accept", 10, 60 * 60 
 
 /* ------------------------- auth ------------------------- */
 
-app.post("/api/auth/login", rateLimit("login", 10, 15 * 60 * 1000), (req, res) => {
+app.post("/api/auth/login", rateLimit("login", 10, 15 * 60 * 1000), wrap(async (req, res) => {
   const { email, password } = req.body || {};
-  if (!checkCredentials(email, password)) return res.status(401).json({ error: "Email o contraseña incorrectos." });
-  setSession(res, adminEmail());
-  res.json({ ok: true });
-});
+  const user = await checkCredentials(email, password, e => one("SELECT * FROM users WHERE email = $1", [e]));
+  if (!user) return res.status(401).json({ error: "Email o contraseña incorrectos." });
+  await q("UPDATE users SET last_login = now() WHERE email = $1", [user.email]);
+  setSession(res, user);
+  res.json({ ok: true, user });
+}));
 app.post("/api/auth/logout", (_req, res) => { clearSession(res); res.json({ ok: true }); });
 app.get("/api/auth/me", (req, res) => {
   const s = readSession(req);
-  s ? res.json({ email: s.e }) : res.status(401).json({ error: "No autorizado" });
+  s ? res.json({ email: s.e, name: s.n || "Administrador", role: s.r || "admin" }) : res.status(401).json({ error: "No autorizado" });
 });
 
 /* ------------------------- privado ------------------------- */

@@ -109,7 +109,11 @@ $("#loginForm").addEventListener("submit", async e => {
 $("#logout").addEventListener("click", async () => { await api("POST", "/auth/logout"); showLogin(); });
 
 async function start() {
-  try { await api("GET", "/auth/me"); } catch { return showLogin(); }
+  let me;
+  try { me = await api("GET", "/auth/me"); } catch { return showLogin(); }
+  const ROLE = { admin: "Administrador", editor: "Comercial", lectura: "Solo lectura" };
+  $("#me").innerHTML = `<b>${esc(me.name)}</b><small>${esc(me.email)} · ${ROLE[me.role] || me.role}</small>`;
+  document.body.dataset.role = me.role;
   $("#login").hidden = true; $("#app").hidden = false;
   route();
 }

@@ -21,6 +21,20 @@ Sitio público de EMUNÁ (misma estética del diseño original) con una página 
 - Al marcar una propuesta como enviada, el cliente pasa a *Propuesta*.
 - Cuando el cliente acepta online, la propuesta queda *Aceptada*, el cliente pasa a *Ganado* y su valor se actualiza.
 
+## Usuarios y permisos
+
+El panel acepta varios usuarios, cada uno con un rol:
+
+| Rol | Puede |
+|---|---|
+| `admin` | Todo, incluso borrar |
+| `editor` (comercial) | Crear y editar clientes, actividades y propuestas, pero no borrar |
+| `lectura` | Solo ver |
+
+- **Administrador principal**: se define con las variables `ADMIN_EMAIL` y `ADMIN_PASSWORD`.
+- **Usuarios de prueba**: están en `src/test-users.js` (`admin.prueba@`, `comercial.prueba@` y `lectura.prueba@emuna.com`). Se crean solos en la base la primera vez que arranca el sitio. El repositorio guarda solo las contraseñas cifradas, así que las contraseñas no son públicas.
+- **Borrar los usuarios de prueba**: cuando termines el desarrollo, cargá `DISABLE_TEST_USERS=1` en Vercel y volvé a desplegar.
+
 ## Correr en tu computadora
 
 Necesitás Node 18 o superior.

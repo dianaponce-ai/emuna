@@ -1,6 +1,7 @@
 // Capa de datos: Postgres en producción (Neon / Vercel Postgres / Supabase vía DATABASE_URL)
 // y PGlite (Postgres embebido, sin instalar nada) en desarrollo local.
 import path from "node:path";
+import { TEST_USERS } from "./test-users.js";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS clients (
@@ -49,11 +50,34 @@ CREATE TABLE IF NOT EXISTS proposals (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS users (
+  id         SERIAL PRIMARY KEY,
+  email      TEXT UNIQUE NOT NULL,
+  name       TEXT NOT NULL,
+  role       TEXT NOT NULL DEFAULT 'editor',
+  pass_hash  TEXT NOT NULL,
+  is_test    BOOLEAN NOT NULL DEFAULT false,
+  last_login TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 CREATE INDEX IF NOT EXISTS idx_act_client ON activities(client_id);
 CREATE INDEX IF NOT EXISTS idx_prop_client ON proposals(client_id);
 `;
 
 let ready;
+
+async function seedUsers(c) {
+  if (process.env.DISABLE_TEST_USERS) {
+    await c.query("DELETE FROM users WHERE is_test = true");
+    return;
+  }
+  for (const u of TEST_USERS) {
+    await c.query(
+      `INSERT INTO users (email,name,role,pass_hash,is_test) VALUES ($1,$2,$3,$4,true)
+       ON CONFLICT (email) DO UPDATE SET pass_hash = EXCLUDED.pass_hash, role = EXCLUDED.role, name = EXCLUDED.name
+       WHERE users.is_test = true`, [u.email, u.name, u.role, u.hash]);
+  }
+}
 
 async function connect() {
   const url = process.env.DATABASE_URL || process.env.POSTGRES_URL;
@@ -62,7 +86,9 @@ async function connect() {
     const local = /localhost|127\.0\.0\.1/.test(url);
     const pool = new pg.Pool({ connectionString: url, ssl: local ? false : { rejectUnauthorized: false }, max: 5 });
     await pool.query(SCHEMA);
-    return { query: (sql, params = []) => pool.query(sql, params), kind: "postgres" };
+    const c = { query: (sql, params = []) => pool.query(sql, params), kind: "postgres" };
+    await seedUsers(c);
+    return c;
   }
   const { PGlite } = await import("@electric-sql/pglite");
   const dir = process.env.VERCEL
@@ -73,7 +99,9 @@ async function connect() {
   fs.mkdirSync(path.dirname(dir), { recursive: true });
   const db = new PGlite(dir);
   await db.exec(SCHEMA);
-  return { query: (sql, params = []) => db.query(sql, params), kind: "pglite" };
+  const c = { query: (sql, params = []) => db.query(sql, params), kind: "pglite" };
+  await seedUsers(c);
+  return c;
 }
 
 export async function db() {
